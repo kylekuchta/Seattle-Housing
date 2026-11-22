@@ -11,9 +11,19 @@ st.set_page_config(page_title="Seattle Housing Monitor", layout="wide")
 st.title("Seattle Housing Market Monitor")
 st.caption("Public data from Zillow Research, Redfin, and FRED. Refreshes when sources update. Not financial advice.")
 
+# Hardcoded fallback FRED key
+from data import DEFAULT_FRED_KEY
+
 # Sidebar controls
 st.sidebar.header("Settings")
-fred_key = st.sidebar.text_input("FRED API Key (optional, for macros)", type="password", help="Get a free key at fred.stlouisfed.org")
+fred_key = st.sidebar.text_input(
+    "FRED API Key (optional override)", 
+    type="password", 
+    help="Leave blank to use the built-in key",
+    value=""
+)
+if not fred_key:
+    fred_key = DEFAULT_FRED_KEY
 selected_zip = st.sidebar.text_input("ZIP code (optional)", placeholder="e.g. 98101")
 show_forecasts = st.sidebar.checkbox("Show Zillow forecasts (if available)", value=True)
 

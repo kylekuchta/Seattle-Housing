@@ -6,7 +6,15 @@ import gzip
 from datetime import datetime
 import os
 
-# Known public URLs
+# Hardcoded FRED key (user-provided). Prefer st.secrets if available.
+DEFAULT_FRED_KEY = "d0f8e0708c52cc27f255631610c0fd99"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
+def _get(url, timeout=60):
+    return requests.get(url, headers=HEADERS, timeout=timeout)
 ZILLOW_METRO_ZHVI = "https://files.zillowstatic.com/research/public_csvs/zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
 ZILLOW_ZIP_ZHVI = "https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
 ZILLOW_METRO_INV = "https://files.zillowstatic.com/research/public_csvs/invt_fs/Metro_invt_fs_uc_sfrcondo_sm_month.csv"
@@ -56,7 +64,7 @@ def load_zillow_zip_zhvi(zip_code=None):
 @st.cache_data(ttl=60*60*12)
 def load_redfin_metro():
     try:
-        r = requests.get(REDFIN_METRO, timeout=60)
+        r = _get(REDFIN_METRO, timeout=60)
         r.raise_for_status()
         df = pd.read_csv(BytesIO(r.content), compression="gzip", sep="\t")
         df["period_begin"] = pd.to_datetime(df["period_begin"])
@@ -72,7 +80,7 @@ def load_redfin_metro():
 @st.cache_data(ttl=60*60*12)
 def load_redfin_zip(zip_code=None):
     try:
-        r = requests.get(REDFIN_ZIP, timeout=90)
+        r = _get(REDFIN_ZIP, timeout=90)
         r.raise_for_status()
         df = pd.read_csv(BytesIO(r.content), compression="gzip", sep="\t")
         df["period_begin"] = pd.to_datetime(df["period_begin"])
