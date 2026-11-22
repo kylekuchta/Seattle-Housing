@@ -3,7 +3,8 @@ import pandas as pd
 import plotly.express as px
 from data import (
     load_zillow_metro_zhvi, load_zillow_zip_zhvi,
-    load_redfin_metro, load_redfin_zip, load_macros
+    load_redfin_metro, load_redfin_zip, load_macros,
+    load_zillow_metro_inventory, load_zillow_metro_zori, load_zillow_metro_zhvf
 )
 from signals import compute_buy_signals, listing_evaluator
 
@@ -30,6 +31,9 @@ show_forecasts = st.sidebar.checkbox("Show Zillow forecasts (if available)", val
 # Load data
 with st.spinner("Loading latest public data..."):
     metro_zhvi = load_zillow_metro_zhvi()
+    metro_inv = load_zillow_metro_inventory()
+    metro_zori = load_zillow_metro_zori()
+    metro_zhvf = load_zillow_metro_zhvf()
     redfin_metro = load_redfin_metro()
     macros = load_macros(fred_key) if fred_key else {}
 
@@ -63,11 +67,29 @@ with col4:
     bias = signals.get("market_bias", "—")
     st.metric("Market Bias", bias)
 
-if signals.get("buy_reasons"):
-    st.subheader("Buy Timing Notes")
-    for r in signals["buy_reasons"]:
-        st.write(f"- {r}")
-    st.caption(f"Simple score: {signals.get('buy_score', 0)} (higher = more buyer-friendly)")
+# Extra metrics from Zillow
+st.subheader("Additional Market Metrics")
+c1, c2, c3 = st.columns(3)
+with c1:
+    if not metro_inv.empty:
+        latest_inv = metro_inv.iloc[-1]["value"]
+        st.metric("For-Sale Inventory", f"{latest_inv:,.0f}")
+with c2:
+    if not metro_zori.empty:
+        latest_rent = metro_zori.iloc[-1]["value"]
+        st.metric("Typical Rent (ZORI)", f"${latest_rent:,.0f}")
+with c3:
+    if not metro_zhvf.empty:
+        # ZHVF is usually growth rates; show latest
+        latest_fcst = metro_zhvf.iloc[-1]["value"]
+        st.metric("Zillow Forecast Growth", f"{latest_fcst:.1f}%")
+
+# Inventory chart
+if not metro_inv.empty:
+    st.subheader("Inventory Trend")
+    fig_inv = px.line(metro_inv, x="date", y="value", title="Zillow For-Sale Inventory (Seattle Metro)")
+    st.plotly_chart(fig_inv, use_container_width=True)
+
 
 # Charts
 st.header("Trends")
@@ -92,7 +114,23 @@ with tab2:
     else:
         st.info("No Redfin data available.")
 
-# Listing evaluator
+# Simple affordability
+st.header("Affordability Snapshot")
+if not metro_zhvi.empty and not macros.get("mortgage_rate", pd.DataFrame()).empty:
+    zhvi = metro_zhvi.iloc[-1]["zhvi"]
+    rate = macros["mortgage_rate"].iloc[-1]["value"]
+    # Rough monthly payment on 80% LTV, 30yr
+    loan = zhvi * 0.8
+    mrate = rate / 100 / 12
+    n = 360
+    pmt = loan * (mrate * (1+mrate)**n) / ((1+mrate)**n - 1) if mrate else loan/n
+    st.write(f"**Estimated monthly P&I** on typical home (${zhvi:,.0f}) at {rate:.2f}%: **${pmt:,.0f}**")
+    if not metro_zori.empty:
+        rent = metro_zori.iloc[-1]["value"]
+        st.write(f"Typical rent: ${rent:,.0f} → Payment-to-rent ratio: {pmt/rent:.2f}x")
+else:
+    st.info("Affordability needs ZHVI and mortgage rate.")
+
 st.header("Listing Evaluator")
 st.write("Enter a listing price to compare against local typical values and estimate a payment.")
 lcol1, lcol2 = st.columns(2)

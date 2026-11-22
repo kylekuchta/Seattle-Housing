@@ -17,8 +17,48 @@ def _get(url, timeout=60):
     return requests.get(url, headers=HEADERS, timeout=timeout)
 ZILLOW_METRO_ZHVI = "https://files.zillowstatic.com/research/public_csvs/zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
 ZILLOW_ZIP_ZHVI = "https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
-ZILLOW_METRO_INV = "https://files.zillowstatic.com/research/public_csvs/invt_fs/Metro_invt_fs_uc_sfrcondo_sm_month.csv"
-ZILLOW_METRO_ZHVF = "https://files.zillowstatic.com/research/public_csvs/zhvf_growth/Metro_zhvf_growth_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+ZILLOW_METRO_ZORI = "https://files.zillowstatic.com/research/public_csvs/zori/Metro_zori_uc_sfrcondomfr_sm_month.csv"
+ZILLOW_ZIP_ZORI = "https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_month.csv"
+
+def melt_zillow(df):
+    id_cols = [c for c in df.columns if not str(c)[0].isdigit()]
+    long = df.melt(id_vars=id_cols, var_name="date", value_name="value")
+    long["date"] = pd.to_datetime(long["date"], errors="coerce")
+    return long.dropna(subset=["value"])
+
+@st.cache_data(ttl=60*60*12)
+def load_zillow_metro_inventory():
+    try:
+        df = pd.read_csv(ZILLOW_METRO_INV)
+        long = melt_zillow(df)
+        seattle = long[long["RegionName"].str.contains("Seattle", case=False, na=False)]
+        return seattle.sort_values("date")
+    except Exception as e:
+        st.info(f"Zillow inventory unavailable: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=60*60*12)
+def load_zillow_metro_zori():
+    try:
+        df = pd.read_csv(ZILLOW_METRO_ZORI)
+        long = melt_zillow(df)
+        seattle = long[long["RegionName"].str.contains("Seattle", case=False, na=False)]
+        return seattle.sort_values("date")
+    except Exception as e:
+        st.info(f"Zillow rents unavailable: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=60*60*12)
+def load_zillow_metro_zhvf():
+    try:
+        df = pd.read_csv(ZILLOW_METRO_ZHVF)
+        long = melt_zillow(df)
+        seattle = long[long["RegionName"].str.contains("Seattle", case=False, na=False)]
+        return seattle.sort_values("date")
+    except Exception as e:
+        st.info(f"Zillow forecast unavailable: {e}")
+        return pd.DataFrame()
+
 
 REDFIN_METRO = "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/redfin_metro_market_tracker.tsv000.gz"
 REDFIN_ZIP = "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/zip_code_market_tracker.tsv000.gz"
