@@ -74,7 +74,7 @@ def load_redfin_metro():
         seattle = seattle[(seattle["period_duration"] == "monthly") & (seattle["property_type"] == "All Residential")]
         return seattle.sort_values("period_begin")
     except Exception as e:
-        st.warning(f"Could not load Redfin metro: {e}")
+        st.warning(f"Redfin metro data unavailable (source may be blocked). Using Zillow data instead.")
         return pd.DataFrame()
 
 @st.cache_data(ttl=60*60*12)
@@ -116,7 +116,7 @@ def load_macros(fred_key):
     macros = {}
     macros["mortgage_rate"] = get_fred_series("MORTGAGE30US", fred_key)
     macros["national_unemp"] = get_fred_series("UNRATE", fred_key)
-    # Seattle MSA unemployment (common series ID)
-    macros["seattle_unemp"] = get_fred_series("SEAT353URN", fred_key)
+    # Seattle MSA unemployment
+    macros["seattle_unemp"] = get_fred_series("SEAT653URN", fred_key)
     macros["case_shiller"] = get_fred_series("SEXRSA", fred_key)
     return macros
